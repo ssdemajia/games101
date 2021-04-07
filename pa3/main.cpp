@@ -110,7 +110,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     float p = 150;
 
     Eigen::Vector3f color = texture_color;
-    Eigen::Vector3f point = payload.view_pos;
+    Eigen::Vector3f point = payload.modelPos;
     Eigen::Vector3f normal = payload.normal;
 
     Eigen::Vector3f result_color = {0, 0, 0};
@@ -135,22 +135,30 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     auto l2 = light{{-20, 20, 0}, {500, 500, 500}};
 
     std::vector<light> lights = {l1, l2};
+    //std::vector<light> lights = { l1 };
     Eigen::Vector3f amb_light_intensity{10, 10, 10};
     Eigen::Vector3f eye_pos{0, 0, 10};
 
     float p = 150;
 
     Eigen::Vector3f color = payload.color;
-    Eigen::Vector3f point = payload.view_pos;
+    Eigen::Vector3f point = payload.modelPos;
     Eigen::Vector3f normal = payload.normal;
 
+    Eigen::Vector4f normal4 = Eigen::Vector4f(normal.x(), normal.y(), normal.z(), 0.0f);
+    auto worldNorm = (payload.model * normal4).head<3>();
     Eigen::Vector3f result_color = {0, 0, 0};
     for (auto& light : lights)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
-        float nov = (light.position - point).dot(normal);
-        result_color += kd * std::max(0.0f, nov);
+        float r2 = (light.position - point).dot(light.position - point);
+        auto lightDir = (light.position - point).normalized();
+        float nov = lightDir.dot(worldNorm);
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity) / r2 * std::max(0.0f, nov);
+
+
+        result_color += diffuse;
     }
 
     return result_color * 255.f;
@@ -175,7 +183,7 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     float p = 150;
 
     Eigen::Vector3f color = payload.color; 
-    Eigen::Vector3f point = payload.view_pos;
+    Eigen::Vector3f point = payload.modelPos;
     Eigen::Vector3f normal = payload.normal;
 
     float kh = 0.2, kn = 0.1;
@@ -223,7 +231,7 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
     float p = 150;
 
     Eigen::Vector3f color = payload.color; 
-    Eigen::Vector3f point = payload.view_pos;
+    Eigen::Vector3f point = payload.modelPos;
     Eigen::Vector3f normal = payload.normal;
 
 
@@ -255,10 +263,10 @@ int main(int argc, const char** argv)
 
     std::string filename = "output.png";
     objl::Loader Loader;
-    std::string obj_path = "./models/spot/";  // 模型目录地址，相对于我们运行代码
+    std::string obj_path = "../../../pa3/models/spot/";  // 模型目录地址，相对于我们运行代码
 
     // Load .obj File
-    bool loadout = Loader.LoadFile("./models/spot/spot_triangulated_good.obj"); // 模型地址，相对于我们运行代码
+    bool loadout = Loader.LoadFile(obj_path + "spot_triangulated_good.obj"); // 模型地址，相对于我们运行代码
     for(auto mesh:Loader.LoadedMeshes)
     {
         for(int i=0;i<mesh.Vertices.size();i+=3)
@@ -339,7 +347,7 @@ int main(int argc, const char** argv)
 
     //     return 0;
     // }
-    using std::chrono::high_resolution_clock;
+
     
     while(key != 27)
     {
@@ -350,10 +358,10 @@ int main(int argc, const char** argv)
         r.set_view(get_view_matrix(eye_pos));
         r.set_projection(get_projection_matrix(45.0, 1, 0.1, 50));
         
-        auto t1 = high_resolution_clock::now();
+        auto t1 = std::chrono::high_resolution_clock::now();
         r.draw(TriangleList);
-        auto t2 = high_resolution_clock::now();
-        auto ms_int = duration_cast<std::chrono::milliseconds>(t2 - t1);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        auto ms_int = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
         std::cout << ms_int.count() << "ms\n";
 
         cv::Mat image(700, 700, CV_32FC3, r.frame_buffer().data());

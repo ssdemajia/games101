@@ -181,14 +181,14 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
         Triangle newtri = *t;
 
         std::array<Eigen::Vector4f, 3> mm {
-                (view * model * t->v[0]),
-                (view * model * t->v[1]),
-                (view * model * t->v[2])
+                (model * t->v[0]),
+                (model * t->v[1]),
+                (model * t->v[2])
         };
 
-        std::array<Eigen::Vector3f, 3> viewspace_pos;
+        std::array<Eigen::Vector3f, 3> modelspace_pos;
 
-        std::transform(mm.begin(), mm.end(), viewspace_pos.begin(), [](auto& v) {
+        std::transform(mm.begin(), mm.end(), modelspace_pos.begin(), [](auto& v) {
             return v.template head<3>();
         });
 
@@ -236,7 +236,7 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
         newtri.setColor(2, 148,121.0,92.0);
 
         // Also pass view space vertice position
-        rasterize_triangle(newtri, viewspace_pos);
+        rasterize_triangle(newtri, modelspace_pos);
     }
 }
 
@@ -257,7 +257,7 @@ static Eigen::Vector2f interpolate(float alpha, float beta, float gamma, const E
 }
 
 //Screen space rasterization
-void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos) 
+void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& modelPos) 
 {
     // TODO: From your HW3, get the triangle rasterization code.
     // TODO: Inside your rasterization loop:
@@ -307,8 +307,10 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
                 Eigen::Vector3f color = alpha * t.color[0] + beta * t.color[1] + gamma * t.color[2];
                 Eigen::Vector3f normal = alpha * t.normal[0] + beta * t.normal[1] + gamma * t.normal[2];
                 Eigen::Vector2f texcoord = interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1.0f);
-                Eigen::Vector3f viewPos = interpolate(alpha, beta, gamma, view_pos[0], view_pos[1], view_pos[2], 1.0f);
-                fragment_shader_payload payload(color, normal, texcoord, viewPos, &texture.value());
+                Eigen::Vector3f pos = interpolate(alpha, beta, gamma, modelPos[0], modelPos[1], modelPos[2], 1.0f);
+                fragment_shader_payload payload(color, normal, texcoord, &texture.value());
+                payload.model = model;
+                payload.modelPos = pos;
                 color = fragment_shader(payload);
                 set_pixel(Eigen::Vector2i(x, y), color);
         }
