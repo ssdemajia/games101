@@ -37,6 +37,13 @@ inline float get_random_float()
     return dist(rng);
 }
 
+inline float get_random_float_half()
+{
+    // 返回 -0.5～0.5的值
+    float v = get_random_float();
+    return v - 0.5;
+}
+
 inline void UpdateProgress(float progress)
 {
     int barWidth = 70;

@@ -83,7 +83,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
 
         auto leftshapes = std::vector<Object*>(beginning, middling);
         auto rightshapes = std::vector<Object*>(middling, ending);
-
+        std::cout << "build BVH:" << leftshapes.size() << "," << rightshapes.size() << std::endl;
         assert(objects.size() == (leftshapes.size() + rightshapes.size()));
 
         node->left = recursiveBuild(leftshapes);
@@ -107,8 +107,18 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
 
 Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
 {
-    // TODO Traverse the BVH to find intersection
+    Intersection inter;
+    Vector3f invDir(ray.direction.x, ray.direction.y, ray.direction.z);
+    if (!node->bounds.IntersectP(ray, invDir))
+        return inter;
+    if (node->left == nullptr && node->right == nullptr) {  // 叶子节点
+        return node->object->getIntersection(ray);
+    }
+    Intersection interLeft = getIntersection(node->left, ray);
+        
+    Intersection interRight = getIntersection(node->right, ray);
 
+    return interLeft.distance < interRight.distance? interLeft: interRight;
 }
 
 
