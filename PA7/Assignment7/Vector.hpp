@@ -11,7 +11,10 @@
 
 class Vector3f {
 public:
-    float x, y, z;
+    union {
+        struct{float x, y, z;};
+        float v[3];
+    };
     Vector3f() : x(0), y(0), z(0) {}
     Vector3f(float xx) : x(xx), y(xx), z(xx) {}
     Vector3f(float xx, float yy, float zz) : x(xx), y(yy), z(zz) {}
@@ -34,9 +37,8 @@ public:
     { return Vector3f(v.x * r, v.y * r, v.z * r); }
     friend std::ostream & operator << (std::ostream &os, const Vector3f &v)
     { return os << v.x << ", " << v.y << ", " << v.z; }
-    double       operator[](int index) const;
-    double&      operator[](int index);
-
+   // double       operator[](int index) const { return (double)(&x)[index];};
+    float&      operator[](int index){ return v[index];};
 
     static Vector3f Min(const Vector3f &p1, const Vector3f &p2) {
         return Vector3f(std::min(p1.x, p2.x), std::min(p1.y, p2.y),
@@ -48,9 +50,9 @@ public:
                        std::max(p1.z, p2.z));
     }
 };
-inline double Vector3f::operator[](int index) const {
-    return (&x)[index];
-}
+//inline double Vector3f::operator[](int index) const {
+//    return (&x)[index];
+//}
 
 
 class Vector2f

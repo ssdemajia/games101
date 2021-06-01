@@ -20,6 +20,9 @@ int main(int argc, char** argv)
     red->Kd = Vector3f(0.63f, 0.065f, 0.05f);
     Material* green = new Material(DIFFUSE, Vector3f(0.0f));
     green->Kd = Vector3f(0.14f, 0.45f, 0.091f);
+    Material* white2 = new Material(SPECULAR, Vector3f(0.0f));
+    white2->Kd = Vector3f(0.725f, 0.71f, 0.68f);
+    white2->Ks = Vector3f(0.9f, 0.01f, 0.06f);
     Material* white = new Material(DIFFUSE, Vector3f(0.0f));
     white->Kd = Vector3f(0.725f, 0.71f, 0.68f);
     Material* light = new Material(DIFFUSE, (8.0f * Vector3f(0.747f+0.058f, 0.747f+0.258f, 0.747f) + 15.6f * Vector3f(0.740f+0.287f,0.740f+0.160f,0.740f) + 18.4f *Vector3f(0.737f+0.642f,0.737f+0.159f,0.737f)));
@@ -31,9 +34,11 @@ int main(int argc, char** argv)
     MeshTriangle left("../models/cornellbox/left.obj", red);
     MeshTriangle right("../models/cornellbox/right.obj", green);
     MeshTriangle light_("../models/cornellbox/light.obj", light);
+    Sphere sp(Vector3f(200.0f, 60.0f, 100.0f), 80.0f, white2);
 
     scene.Add(&floor);
-    scene.Add(&shortbox);
+    scene.Add(&sp);
+    // scene.Add(&shortbox);
     scene.Add(&tallbox);
     scene.Add(&left);
     scene.Add(&right);

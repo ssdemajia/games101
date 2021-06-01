@@ -21,6 +21,7 @@ public:
     Renderer();
     void Render(const Scene& scene);
     void PathTrace(int id);
+    void doPathTrace(int i, int j, int spp);
 private:
     float imageAspectRatio;
     float scale;

@@ -109,7 +109,7 @@ Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
 {
     Intersection inter;
     Vector3f invDir(ray.direction.x, ray.direction.y, ray.direction.z);
-    if (!node->bounds.IntersectP(ray, invDir))
+    if (!node->bounds.IntersectP(ray, ray.direction_inv, {ray.direction.x<0,ray.direction.y<0,ray.direction.z<0}))
         return inter;
     if (node->left == nullptr && node->right == nullptr) {  // 叶子节点
         return node->object->getIntersection(ray);

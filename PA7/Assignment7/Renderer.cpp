@@ -33,25 +33,23 @@ void Renderer::Render(const Scene& scene)
     eye_pos = Vector3f(278, 273, -800);
     mFramebufferIndex = 0;
     this->scene = &scene;
-    // change the spp value to change sample ammount
-    int spp = 1;
     
-    std::cout << "SPP: " << spp << "\n";
     mJobs.resize(scene.width * scene.height);
     for (uint32_t j = 0; j < scene.height; ++j) {
         for (uint32_t i = 0; i < scene.width; ++i) {
             mJobs.push_back(std::make_pair(i, j));
+            // doPathTrace(i, j, 1);
         }
     }
-    std::cout << "job nums:" << mJobs.size() << std::endl;
-    for (int i = 0; i < mThreadNums; i++)
-    {
-        mAllThreads.emplace_back(std::bind(&Renderer::PathTrace, this, std::placeholders::_1), i);
-    }
-    for (auto& t : mAllThreads)
-    {
-        t.join();
-    }
+   std::cout << "job nums:" << mJobs.size() << std::endl;
+   for (int i = 0; i < mThreadNums; i++)
+   {
+       mAllThreads.emplace_back(std::bind(&Renderer::PathTrace, this, std::placeholders::_1), i);
+   }
+   for (auto& t : mAllThreads)
+   {
+       t.join();
+   }
     UpdateProgress(1.f);
 
     // save framebuffer to file
@@ -72,11 +70,13 @@ void Renderer::Render(const Scene& scene)
 
 void Renderer::PathTrace(int id)
 {
+    int spp = 17;
     std::cout << id << " start" << std::endl;
+    // change the spp value to change sample ammount
+    std::cout << "SPP: " << spp << "\n";
     while (true)
     {
-        int spp = 17;
-        int index = id+mThreadNums*mThreadRound[id];
+        int index = id + mThreadNums * mThreadRound[id];
         
         mThreadRound[id] += 1;
         if (index >= mJobs.size())
@@ -87,23 +87,24 @@ void Renderer::PathTrace(int id)
         auto& job = mJobs[index];
         int i = job.first;
         int j = job.second;
-        for (int k = 0; k < spp; k++){
-            // i += get_random_float_half();
-            // j += get_random_float_half();
-            // generate primary ray direction
-            float x = (2 * (i + 0.5) / (float)scene->width - 1) *
-                    imageAspectRatio * scale;
-            float y = (1 - 2 * (j + 0.5) / (float)scene->height) * scale;
-
-            Vector3f dir = normalize(Vector3f(-x, y, 1));
-            mFramebuffer[i][j] += scene->castRay(Ray(eye_pos, dir), 0) / spp;  
-        }
-        {
-            std::lock_guard<std::mutex> g(mFramebufferIndexMutex);
-            mFramebufferIndex++;
-            UpdateProgress(mFramebufferIndex / (float)mJobs.size());
-        }
+        doPathTrace(i, j, spp);
     }
-    
-    
+}
+
+void Renderer::doPathTrace(int i, int j, int spp)
+{
+    for (int k = 0; k < spp; k++){
+        // generate primary ray direction
+        float x = (2 * (i + 0.5) / (float)scene->width - 1) *
+                imageAspectRatio * scale;
+        float y = (1 - 2 * (j + 0.5) / (float)scene->height) * scale;
+
+        Vector3f dir = normalize(Vector3f(-x, y, 1));
+        mFramebuffer[i][j] += scene->castRay(Ray(eye_pos, dir), 0) / spp;
+    }
+   {
+       std::lock_guard<std::mutex> g(mFramebufferIndexMutex);
+       mFramebufferIndex++;
+       UpdateProgress(mFramebufferIndex / (float)mJobs.size());
+   }
 }

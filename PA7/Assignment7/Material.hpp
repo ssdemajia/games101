@@ -7,7 +7,7 @@
 
 #include "Vector.hpp"
 
-enum MaterialType { DIFFUSE};
+enum MaterialType { DIFFUSE, SPECULAR };
 
 class Material{
 private:
@@ -85,6 +85,40 @@ private:
         return a.x * B + a.y * C + a.z * N;
     }
 
+    float DistributionGGX(const Vector3f &N, const Vector3f &H, float roughness)
+    {
+        // 参考 https://learnopengl.com/PBR/Theory
+        float a2 = roughness * roughness;
+        float NdotH = dotProduct(N, H);
+        float NdotH2 = std::max(NdotH*NdotH, EPSILON);
+        
+        float nom = a2;
+        float denom = (NdotH2 * (a2 - 1) + 1);
+        denom = M_PI * denom * denom;
+        return nom / denom;
+    }
+
+    float GeometrySchlickGGX(float nov, float k)
+    {
+        float nom = nov;
+        float denom = nov * (1.0f - k) + k;
+        return nom / denom;
+    }
+
+    float GeometrySmith(const Vector3f &N, const Vector3f &V, const Vector3f &L, float k)
+    {
+        float nov = std::max(dotProduct(N, V), 0.0f);
+        float nol = std::max(dotProduct(N, L), 0.0f);
+        float ggx1 = GeometrySchlickGGX(nov, k);
+        float ggx2 = GeometrySchlickGGX(nol, k);
+        return ggx1 * ggx2;
+    }
+
+    Vector3f FresnelSchlick(float cosTheta, Vector3f F0)
+    {
+        return F0 + (Vector3f(1.0f) - F0) * std::pow(1.0 - cosTheta, 5.0);
+    }
+    
 public:
     MaterialType m_type;
     //Vector3f m_color;
@@ -106,7 +140,7 @@ public:
     // given a ray, calculate the PdF of this ray
     inline float pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N);
     // given a ray, calculate the contribution of this ray
-    inline Vector3f eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &N);
+    inline Vector3f eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &N, const Vector3f view=Vector3f(0));
 
 };
 
@@ -142,6 +176,17 @@ Vector3f Material::sample(const Vector3f &wi, const Vector3f &N){
             
             break;
         }
+        case SPECULAR:
+        {
+            // uniform sample on the hemisphere
+            float x_1 = get_random_float(), x_2 = get_random_float();
+            float z = std::fabs(1.0f - 2.0f * x_1);
+            float r = std::sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+            Vector3f localRay(r*std::cos(phi), r*std::sin(phi), z);
+            return toWorld(localRay, N);
+            
+            break;
+        }
     }
 }
 
@@ -156,10 +201,20 @@ float Material::pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
                 return 0.0f;
             break;
         }
+        case SPECULAR:
+        {
+            // uniform sample probability 1 / (2 * PI)
+            if (dotProduct(wo, N) > 0.0f)
+                return 0.5f / M_PI;
+            else
+                return 0.0f;
+            break;
+        }
     }
 }
 
-Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
+
+Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &N, const Vector3f V){
     switch(m_type){
         case DIFFUSE:
         {
@@ -171,6 +226,32 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
             }
             else
                 return Vector3f(0.0f);
+            break;
+        }
+        case SPECULAR:
+        {
+            float cosalpha = dotProduct(N, wo);
+            Vector3f diffuse;
+            if (cosalpha > 0.0f) {
+                diffuse = Kd / M_PI;
+            }
+            float roughness = 0.8f;
+            float metalness = 0.8f;
+            Vector3f H = normalize(V + wi);
+            float cosTheta = dotProduct(N, V);
+            float wiN = dotProduct(wi, N);
+            float woN = dotProduct(wo, N);
+            
+            float D = DistributionGGX(N, H, roughness);
+            
+            Vector3f F0(0.04);
+            F0 = lerp(F0, Kd, metalness);
+            Vector3f F = FresnelSchlick(cosTheta, F0);
+
+            float k = roughness * roughness / 2;
+            float G = GeometrySmith(N, V, wi, k);
+            Vector3f specular = Ks * D * F * G / (4 * wiN * woN);
+            return diffuse + specular;
             break;
         }
     }

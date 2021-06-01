@@ -84,34 +84,30 @@ class Bounds3
         return (i == 0) ? pMin : pMax;
     }
 
-    inline bool IntersectP(const Ray& ray, const Vector3f& invDir) const;
+    inline bool IntersectP(const Ray& ray, const Vector3f& invDir,
+                           const std::array<bool, 3>& dirisNeg) const;
 };
 
 
-// 判断包围盒与光线相交
-inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir) const
+
+inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
+                                const std::array<bool, 3>& dirIsNeg) const
 {
-    // invDir: ray direction(x,y,z), invDir=(1.0/x,1.0/y,1.0/z), use this because Multiply is faster that Division
-    // dirIsNeg: ray direction(x,y,z), dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
     // TODO test if ray bound intersects
-    
-    Vector3f tMin = (pMin - ray.origin) / ray.direction;
-    Vector3f tMax = (pMax - ray.origin) / ray.direction;
-    
-    if (ray.direction.x < 0)
-        std::swap(tMin.x, tMax.x);
-    if (ray.direction.y < 0)
-        std::swap(tMin.y, tMax.y);
-    if (ray.direction.z < 0)
-        std::swap(tMin.z, tMax.z);
-
-    float tEnter = std::max(tMin.x, std::max(tMin.y, tMin.z));
-    float tExit = std::min(tMax.x, std::min(tMax.y, tMax.z));
-
-    if (tEnter <= tExit && tExit >= 0) {
-        return true;
+    auto tMin = (pMin - ray.origin) * invDir;
+    auto tMax = (pMax - ray.origin) * invDir;
+    float tEnter = std::numeric_limits<float>::lowest();
+    float tExit = std::numeric_limits<float>::max();
+    for (int i = 0; i < 3; i++){
+        if (dirIsNeg[i]) {  // 射线方向不朝正方向
+            tEnter = fmax(tEnter, tMax[i]);
+            tExit = fmin(tExit, tMin[i]);
+        } else {
+            tEnter = fmax(tEnter, tMin[i]);
+            tExit = fmin(tExit, tMax[i]);
+        }
     }
-    return false;
+    return tExit >= tEnter && tExit > 0; 
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)
